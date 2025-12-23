@@ -22,8 +22,8 @@ def get_client_projects(client_name):
             'Content-Type': 'application/json'
         }
         
-        # Filter by client and active status
-        filter_formula = f"AND({{Client}}='{client_name}', OR({{Status}}='In Progress', {{Status}}='On Hold'))"
+        # Filter by client code (Job Number prefix) and active status
+        filter_formula = f"AND(FIND('{client_name}', {{Job Number}})=1, OR({{Status}}='In Progress', {{Status}}='On Hold'))"
         
         url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_PROJECTS_TABLE}"
         params = {'filterByFormula': filter_formula}
@@ -45,7 +45,8 @@ def get_client_projects(client_name):
                 'with_client': fields.get('With Client?', False),
                 'update_summary': fields.get('Latest Update', ''),
                 'update_due': fields.get('Update Due', ''),
-                'live_date': fields.get('Live Date', '')
+                'live_date': fields.get('Live Date', ''),
+                'client': fields.get('Client', '')
             })
         
         return projects
@@ -151,25 +152,29 @@ def wip():
     """Generate WIP email HTML for a client"""
     try:
         data = request.get_json()
-        client_name = data.get('client', '')
+        client_code = data.get('clientCode', data.get('client', ''))
         
-        if not client_name:
-            return jsonify({'error': 'No client name provided'}), 400
+        if not client_code:
+            return jsonify({'error': 'No client code provided'}), 400
         
         # Get projects from Airtable
-        projects = get_client_projects(client_name)
+        projects = get_client_projects(client_code)
         
         if not projects:
             return jsonify({
                 'error': 'No active projects found',
-                'client': client_name
+                'clientCode': client_code
             }), 404
+        
+        # Get client name from first project (for the header)
+        client_name = projects[0].get('client', client_code)
         
         # Build HTML
         html = build_wip_email(client_name, projects)
         
         return jsonify({
-            'client': client_name,
+            'clientCode': client_code,
+            'clientName': client_name,
             'projectCount': len(projects),
             'html': html
         })
