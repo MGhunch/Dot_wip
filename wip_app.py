@@ -132,10 +132,10 @@ def build_job_html(job):
         </p>
         <table cellpadding="0" cellspacing="0" style="font-size: 13px; color: #888;">
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Owner:</strong></td><td>{job['project_owner']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Stage:</strong></td><td>{job['stage']}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{job['update_summary']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update due:</strong></td><td>{update_due}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live:</strong></td><td>{live_date}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Stage:</strong></td><td>{job['stage']}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Due on:</strong></td><td>{update_due}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live by:</strong></td><td>{live_date}</td></tr>
         </table>
       </td>
     </tr>'''
