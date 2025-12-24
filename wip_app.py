@@ -118,8 +118,19 @@ def get_client_projects(client_name):
 
 def build_job_html(job):
     """Build HTML block for a single job"""
-    update_due = format_date(job['update_due'])
-    live_date = format_date(job['live_date']) if job['live_date'] not in ['TBC', 'tbc', ''] else job['live_date']
+    # Handle lookup fields that return as arrays
+    update_summary = job['update_summary']
+    if isinstance(update_summary, list):
+        update_summary = update_summary[0] if update_summary else ''
+    
+    update_due = job['update_due']
+    if isinstance(update_due, list):
+        update_due = update_due[0] if update_due else ''
+    update_due = format_date(update_due)
+    
+    live_date = job['live_date']
+    if live_date not in ['TBC', 'tbc', '']:
+        live_date = format_date(live_date)
     
     return f'''
     <tr>
@@ -132,7 +143,7 @@ def build_job_html(job):
         </p>
         <table cellpadding="0" cellspacing="0" style="font-size: 13px; color: #888;">
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Owner:</strong></td><td>{job['project_owner']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{job['update_summary']}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{update_summary}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Due on:</strong></td><td>{update_due}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Live by:</strong></td><td>{live_date}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Job stage:</strong></td><td>{job['stage']}</td></tr>
@@ -190,7 +201,7 @@ def build_wip_email(client_name, projects, header_url=''):
     <tr>
       <td style="border-bottom: 4px solid #ED1C24; padding: 20px; width: 600px;">
         {header_content}
-        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name} — WIP</p>
+        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}: WIP</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
       </td>
     </tr>
