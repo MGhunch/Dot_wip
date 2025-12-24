@@ -122,15 +122,23 @@ def build_job_html(job):
     update_summary = job['update_summary']
     if isinstance(update_summary, list):
         update_summary = update_summary[0] if update_summary else ''
+    if not update_summary:
+        update_summary = 'No updates yet'
     
     update_due = job['update_due']
     if isinstance(update_due, list):
         update_due = update_due[0] if update_due else ''
-    update_due = format_date(update_due)
+    if update_due:
+        update_due = format_date(update_due)
+    else:
+        update_due = 'TBC'
     
     live_date = job['live_date']
-    if live_date not in ['TBC', 'tbc', '']:
-        live_date = format_date(live_date)
+    if not live_date:
+        live_date = 'TBC'
+    elif live_date.lower() not in ['tbc', 'early', 'late', 'mid'] and not any(x in live_date.lower() for x in ['early', 'late', 'mid']):
+        # Only format if it looks like a date, not free text like "Early May"
+        live_date = format_date(live_date) or live_date
     
     return f'''
     <tr>
