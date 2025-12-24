@@ -132,10 +132,10 @@ def build_job_html(job):
         </p>
         <table cellpadding="0" cellspacing="0" style="font-size: 13px; color: #888;">
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Owner:</strong></td><td>{job['project_owner']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{job['update_summary']}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Stage:</strong></td><td>{job['stage']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Due on:</strong></td><td>{update_due}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live by:</strong></td><td>{live_date}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{job['update_summary']}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update due:</strong></td><td>{update_due}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live:</strong></td><td>{live_date}</td></tr>
         </table>
       </td>
     </tr>'''
@@ -172,7 +172,7 @@ def build_wip_email(client_name, projects, header_url=''):
     
     # Build header - use image if available, otherwise text
     if header_url:
-        header_content = f'''<img src="{header_url}" width="600" style="width: 100%; max-width: 600px; height: auto; display: block;">'''
+        header_content = f'''<img src="{header_url}" width="600" style="width: 100%; max-width: 600px; height: auto; display: block;" alt="{client_name} WIP Header">'''
     else:
         header_content = f'''<span style="font-size: 28px; font-weight: bold; color: #ED1C24;">HUNCH — WIP</span>'''
     
@@ -190,7 +190,7 @@ def build_wip_email(client_name, projects, header_url=''):
     <tr>
       <td style="border-bottom: 4px solid #ED1C24; padding: 20px;">
         {header_content}
-        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}</p>
+        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name} — WIP</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
       </td>
     </tr>
@@ -273,9 +273,6 @@ def health():
     })
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
