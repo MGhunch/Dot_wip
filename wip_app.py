@@ -102,8 +102,8 @@ def get_client_projects(client_name):
                 'stage': fields.get('Stage', ''),
                 'status': fields.get('Status', ''),
                 'with_client': fields.get('With Client?', False),
-                'update_summary': fields.get('Latest Update', ''),
-                'update_due': fields.get('Update Due', ''),
+                'update_summary': fields.get('Update', ''),
+                'update_due': fields.get('Update due', ''),
                 'live_date': fields.get('Live Date', ''),
                 'client': fields.get('Client', ''),
                 'project_owner': fields.get('Project Owner', '')
@@ -132,10 +132,10 @@ def build_job_html(job):
         </p>
         <table cellpadding="0" cellspacing="0" style="font-size: 13px; color: #888;">
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Owner:</strong></td><td>{job['project_owner']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Stage:</strong></td><td>{job['stage']}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{job['update_summary']}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update due:</strong></td><td>{update_due}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live:</strong></td><td>{live_date}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Due on:</strong></td><td>{update_due}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live by:</strong></td><td>{live_date}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Job stage:</strong></td><td>{job['stage']}</td></tr>
         </table>
       </td>
     </tr>'''
@@ -184,19 +184,19 @@ def build_wip_email(client_name, projects, header_url=''):
 </head>
 <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #f5f5f5;">
   
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+  <table width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 auto; background-color: #ffffff;">
     
     <!-- Header -->
     <tr>
-      <td style="border-bottom: 4px solid #ED1C24; padding: 20px;">
+      <td style="border-bottom: 4px solid #ED1C24; padding: 20px; width: 600px;">
         {header_content}
         <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name} — WIP</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
       </td>
     </tr>
     
-    {build_section_html("WITH US", with_us)}
-    {build_section_html("WITH YOU", with_you)}
+    {build_section_html("IN PROGRESS", with_us)}
+    {build_section_html("JOBS WITH YOU", with_you)}
     {build_section_html("ON HOLD", on_hold, "#999999")}
     
     <!-- Footer -->
