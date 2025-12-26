@@ -235,8 +235,14 @@ def build_completed_section(completed_projects):
     
     return f'''
     <tr>
-      <td style="padding: 20px;">
-        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333;">Recently completed</p>
+      <td style="padding: 20px 20px 0 20px;">
+        <div style="background-color: #999999; color: #ffffff; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 3px;">
+          RECENTLY COMPLETED
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 15px 20px;">
         <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
           {items}
         </ul>
@@ -309,7 +315,8 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
     <!-- Footer -->
     <tr>
       <td style="padding: 25px 20px; border-top: 1px solid #eee; text-align: center;">
-        <p style="margin: 0; font-size: 12px; color: #999;">WIP updated by Dot@hunch</p>
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Any questions or queries, <a href="mailto:michael@hunch.co.nz" style="color: #333; font-weight: bold;">get in touch</a>.</p>
+        <p style="margin: 0; font-size: 12px; color: #999;">WIP updated by Dot@hunch.co.nz</p>
       </td>
     </tr>
     
