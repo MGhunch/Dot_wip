@@ -9,6 +9,90 @@ app = Flask(__name__)
 AIRTABLE_API_KEY = os.environ.get('AIRTABLE_API_KEY')
 AIRTABLE_BASE_ID = 'app8CI7NAZqhQ4G1Y'
 AIRTABLE_PROJECTS_TABLE = 'Projects'
+AIRTABLE_CLIENTS_TABLE = 'Clients'
+
+
+def format_date(date_str):
+    """Format date string to 'D MMM' format (e.g., '5 Jan')"""
+    if not date_str:
+        return ''
+    try:
+        for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y']:
+            try:
+                date_obj = datetime.strptime(date_str, fmt)
+                return date_obj.strftime('%-d %b')
+            except ValueError:
+                continue
+        return date_str
+    except:
+        return date_str
+
+
+def get_client_info(client_code):
+    """Fetch client info including WIP header image from Clients table"""
+    if not AIRTABLE_API_KEY:
+        return None
+    
+    try:
+        headers = {
+            'Authorization': f'Bearer {AIRTABLE_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        filter_formula = f"{{Client code}}='{client_code}'"
+        url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_CLIENTS_TABLE}"
+        params = {'filterByFormula': filter_formula}
+        
+        response = httpx.get(url, headers=headers, params=params, timeout=30.0)
+        response.raise_for_status()
+        
+        records = response.json().get('records', [])
+        
+        if not records:
+            return None
+        
+        fields = records[0].get('fields', {})
+        
+        wip_header = fields.get('Wip headers', [])
+        header_url = wip_header[0].get('url', '') if wip_header else ''
+        
+        return {
+            'client_name': fields.get('Client', ''),
+            'client_code': fields.get('Client code', ''),
+            'header_url': header_url
+        }
+        
+    except Exception as e:
+        print(f"Error fetching client info: {e}")
+        return None
+
+
+def normalize_client_code(client_code):
+    """Convert client name to client code if needed"""
+    # Reverse lookup - if they sent a name, convert to code
+    name_to_code = {
+        'one nz': 'ONE',
+        'one nz marketing': 'ONE',
+        'one nz - marketing': 'ONE',
+        'one nz (marketing)': 'ONE',
+        'one nz simplification': 'ONS',
+        'one nz - simplification': 'ONS',
+        'one nz (simplification)': 'ONS',
+        'sky': 'SKY',
+        'sky tv': 'SKY',
+        'tower': 'TOW',
+        'tower insurance': 'TOW',
+        'fisher funds': 'FIS',
+        'firestop': 'FST',
+        'hunch': 'HUN',
+        'eon fibre': 'EON',
+        'labour': 'LAB',
+        'other': 'OTH'
+    }
+    
+    if client_code.lower() in name_to_code:
+        return name_to_code[client_code.lower()]
+    return client_code
 
 
 def get_client_projects(client_code):
@@ -22,25 +106,7 @@ def get_client_projects(client_code):
             'Content-Type': 'application/json'
         }
         
-        # Map client codes to full client names for filtering
-        client_map = {
-            'ONE': 'One NZ',
-            'ONS': 'One NZ (Simplification)',
-            'SKY': 'Sky',
-            'TOW': 'Tower',
-            'FIS': 'Fisher Funds',
-            'FST': 'Firestop',
-            'HUN': 'Hunch',
-            'EON': 'Eon Fibre',
-            'LAB': 'Labour',
-            'OTH': 'Other'
-        }
-        
-        # Get display name for email header, use code if not mapped
-        display_name = client_map.get(client_code, client_code)
-        
-        # Filter using FIND to match client codes that START with the code
-        # This catches "One NZ (Marketing)" and "One NZ (Simplification)" for ONE
+        # Filter by client code (Job Number prefix) and active status
         filter_formula = f"AND(FIND('{client_code}', {{Job Number}})=1, OR({{Status}}='In Progress', {{Status}}='On Hold'))"
         
         url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_PROJECTS_TABLE}"
@@ -61,12 +127,14 @@ def get_client_projects(client_code):
                 'stage': fields.get('Stage', ''),
                 'status': fields.get('Status', ''),
                 'with_client': fields.get('With Client?', False),
-                'latest_update': fields.get('Latest Update', ''),
-                'update_due': fields.get('Update Due', ''),
-                'live_date': fields.get('Live Date', '')
+                'update_summary': fields.get('Update', ''),
+                'update_due': fields.get('Update due', ''),
+                'live_date': fields.get('Live Date', ''),
+                'client': fields.get('Client', ''),
+                'project_owner': fields.get('Project Owner', '')
             })
         
-        # Now get recently completed projects (Status = Completed, Status Changed in last 6 weeks)
+        # Get recently completed projects (Status = Completed, Status Changed in last 6 weeks)
         six_weeks_ago = (datetime.now() - timedelta(days=42)).strftime('%Y-%m-%d')
         completed_filter = f"AND(FIND('{client_code}', {{Job Number}})=1, {{Status}}='Completed', IS_AFTER({{Status Changed}}, '{six_weeks_ago}'))"
         
@@ -85,155 +153,172 @@ def get_client_projects(client_code):
                 'description': fields.get('Description', '')
             })
         
-        return active_projects, completed_projects, display_name
+        return active_projects, completed_projects
         
     except Exception as e:
         print(f"Airtable error: {e}")
-        return [], [], client_code
+        return [], []
 
 
-def build_wip_email(client_name, projects, completed_projects):
-    """Build HTML email for WIP report"""
+def build_job_html(job):
+    """Build HTML block for a single job"""
+    # Handle lookup fields that return as arrays
+    update_summary = job['update_summary']
+    if isinstance(update_summary, list):
+        update_summary = update_summary[0] if update_summary else ''
+    if not update_summary:
+        update_summary = 'No updates yet'
+    
+    update_due = job['update_due']
+    if isinstance(update_due, list):
+        update_due = update_due[0] if update_due else ''
+    if update_due:
+        update_due = format_date(update_due)
+    else:
+        update_due = 'TBC'
+    
+    live_date = job['live_date']
+    if not live_date:
+        live_date = 'TBC'
+    elif live_date.lower() not in ['tbc', 'early', 'late', 'mid'] and not any(x in live_date.lower() for x in ['early', 'late', 'mid']):
+        live_date = format_date(live_date) or live_date
+    
+    return f'''
+    <tr>
+      <td style="padding: 15px 20px; border-bottom: 1px solid #eee;">
+        <p style="margin: 0 0 5px 0; font-size: 16px; font-weight: bold; color: #333;">
+          {job['job_number']} — {job['job_name']}
+        </p>
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666; line-height: 1.4;">
+          {job['description']}
+        </p>
+        <table cellpadding="0" cellspacing="0" style="font-size: 13px; color: #888;">
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Owner:</strong></td><td>{job['project_owner']}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Update:</strong></td><td>{update_summary}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Due on:</strong></td><td>{update_due}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Live by:</strong></td><td>{live_date}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0;"><strong>Job stage:</strong></td><td>{job['stage']}</td></tr>
+        </table>
+      </td>
+    </tr>'''
+
+
+def build_section_html(title, jobs, color="#ED1C24"):
+    """Build HTML section with header and jobs"""
+    if not jobs:
+        return ''
+    
+    section = f'''
+    <tr>
+      <td style="padding: 20px 20px 0 20px;">
+        <div style="background-color: {color}; color: #ffffff; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 3px;">
+          {title}
+        </div>
+      </td>
+    </tr>'''
+    
+    for job in jobs:
+        section += build_job_html(job)
+    
+    return section
+
+
+def build_completed_section(completed_projects):
+    """Build HTML section for recently completed projects"""
+    if not completed_projects:
+        return ''
+    
+    items = "".join([
+        f"<li style='margin-bottom: 8px;'><strong style='color: #ED1C24;'>{p['job_number']}</strong> — {p['job_name']} — {p['description']}</li>"
+        for p in completed_projects
+    ])
+    
+    return f'''
+    <tr>
+      <td style="padding: 20px;">
+        <div style="border-top: 2px solid #eee; padding-top: 20px;">
+          <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333;">✅ RECENTLY COMPLETED</p>
+          <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
+            {items}
+          </ul>
+        </div>
+      </td>
+    </tr>'''
+
+
+def build_wip_email(client_name, projects, completed_projects, header_url=''):
+    """Build complete WIP email HTML"""
+    today = datetime.now().strftime('%d %B %Y')
     
     # Sort projects into categories
     with_us = [p for p in projects if p['status'] == 'In Progress' and not p['with_client']]
     with_you = [p for p in projects if p['status'] == 'In Progress' and p['with_client']]
     on_hold = [p for p in projects if p['status'] == 'On Hold']
     
-    # Build project rows
-    def project_row(project, show_stage=True):
-        stage_html = f"<span style='background-color: #f0f0f0; padding: 2px 8px; border-radius: 3px; font-size: 12px;'>{project['stage']}</span>" if show_stage and project['stage'] else ""
-        live_date = f"<br><span style='color: #666; font-size: 12px;'>Live: {project['live_date']}</span>" if project['live_date'] else ""
-        
-        return f"""
-        <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                <strong style="color: #ED1C24;">{project['job_number']}</strong> - {project['job_name']}<br>
-                <span style="color: #666; font-size: 14px;">{project['description']}</span>
-                {live_date}
-            </td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">
-                {stage_html}
-            </td>
-        </tr>
-        """
+    # Build header - use image if available, otherwise text
+    if header_url:
+        header_content = f'''<img src="{header_url}" width="600" style="width: 100%; max-width: 600px; height: auto; display: block;" alt="{client_name} WIP Header">'''
+    else:
+        header_content = f'''<span style="font-size: 28px; font-weight: bold; color: #ED1C24;">HUNCH — WIP</span>'''
     
-    def section(title, emoji, project_list, show_stage=True):
-        if not project_list:
-            return ""
-        rows = "".join([project_row(p, show_stage) for p in project_list])
-        return f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
-            <tr>
-                <td colspan="2" style="padding: 12px; background-color: #f8f8f8; border-left: 4px solid #ED1C24;">
-                    <strong>{emoji} {title}</strong> <span style="color: #666;">({len(project_list)} projects)</span>
-                </td>
-            </tr>
-            {rows}
-        </table>
-        """
-    
-    def completed_section(completed_list):
-        if not completed_list:
-            return ""
-        
-        items = "".join([
-            f"<li style='margin-bottom: 8px;'><strong style='color: #ED1C24;'>{p['job_number']}</strong> - {p['job_name']} - {p['description']}</li>"
-            for p in completed_list
-        ])
-        
-        return f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 32px; border-top: 2px solid #eee; padding-top: 24px;">
-            <tr>
-                <td style="padding: 12px;">
-                    <strong>✅ RECENTLY COMPLETED</strong>
-                    <ul style="margin-top: 12px; padding-left: 20px; color: #666;">
-                        {items}
-                    </ul>
-                </td>
-            </tr>
-        </table>
-        """
-    
-    today = datetime.now().strftime('%d %B %Y')
-    
-    html = f"""
-<!DOCTYPE html>
+    html = f'''<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--[if mso]>
-    <style type="text/css">
-        table {{border-collapse: collapse; border-spacing: 0; margin: 0;}}
-        div, td {{padding: 0;}}
-        div {{margin: 0 !important;}}
-    </style>
-    <noscript>
-        <xml>
-            <o:OfficeDocumentSettings>
-                <o:PixelsPerInch>96</o:PixelsPerInch>
-            </o:OfficeDocumentSettings>
-        </xml>
-    </noscript>
-    <![endif]-->
-    <style>
-        @media screen and (max-width: 600px) {{
-            .wrapper {{
-                width: 100% !important;
-                padding: 12px !important;
-            }}
-            .header-banner {{
-                padding: 16px !important;
-            }}
-        }}
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--[if mso]>
+  <style type="text/css">
+    table {{border-collapse: collapse; border-spacing: 0; margin: 0;}}
+    div, td {{padding: 0;}}
+    div {{margin: 0 !important;}}
+  </style>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    @media screen and (max-width: 600px) {{
+      .wrapper {{
+        width: 100% !important;
+        padding: 12px !important;
+      }}
+    }}
+  </style>
 </head>
-<body style="margin: 0; padding: 0; font-family: Calibri, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #333; background-color: #ffffff; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+<body style="margin: 0; padding: 20px; font-family: Calibri, Arial, sans-serif; background-color: #f5f5f5; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  
+  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 auto; background-color: #ffffff;">
     
-    <!-- Wrapper table for full width background -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                
-                <!-- Content table -->
-                <table class="wrapper" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%;">
-        
-                    <!-- Header -->
-                    <tr>
-                        <td class="header-banner" style="padding: 20px; background-color: #ED1C24;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">Work in Progress</h1>
-                            <p style="margin: 8px 0 0 0; color: #ffffff; opacity: 0.9;">{client_name} | {today}</p>
-                        </td>
-                    </tr>
-        
-                    <!-- Content -->
-                    <tr>
-                        <td style="padding: 24px 20px;">
-                            {section("WITH US", "🔨", with_us)}
-                            {section("WITH YOU", "📤", with_you)}
-                            {section("ON HOLD", "⏸️", on_hold, show_stage=False)}
-                            {completed_section(completed_projects)}
-                        </td>
-                    </tr>
-        
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px;">
-                            Generated by Dot @ Hunch
-                        </td>
-                    </tr>
-        
-                </table>
-                
-            </td>
-        </tr>
-    </table>
+    <!-- Header -->
+    <tr>
+      <td style="border-bottom: 4px solid #ED1C24; padding: 20px;">
+        {header_content}
+        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}: WIP</p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
+      </td>
+    </tr>
     
+    {build_section_html("IN PROGRESS", with_us)}
+    {build_section_html("JOBS WITH YOU", with_you)}
+    {build_section_html("ON HOLD", on_hold, "#999999")}
+    {build_completed_section(completed_projects)}
+    
+    <!-- Footer -->
+    <tr>
+      <td style="padding: 25px 20px; border-top: 1px solid #eee; text-align: center;">
+        <p style="margin: 0; font-size: 12px; color: #999;">WIP updated by Dot@hunch</p>
+      </td>
+    </tr>
+    
+  </table>
+  
 </body>
-</html>
-"""
+</html>'''
     
     return html
 
@@ -251,8 +336,11 @@ def wip():
         if not client_code:
             return jsonify({'error': 'No client code provided'}), 400
         
+        # Normalize client code (convert name to code if needed)
+        client_code = normalize_client_code(client_code)
+        
         # Get projects from Airtable
-        active_projects, completed_projects, display_name = get_client_projects(client_code)
+        active_projects, completed_projects = get_client_projects(client_code)
         
         if not active_projects and not completed_projects:
             return jsonify({
@@ -260,12 +348,24 @@ def wip():
                 'clientCode': client_code
             }), 404
         
+        # Get client info (including header image) from Clients table
+        client_info = get_client_info(client_code)
+        header_url = client_info.get('header_url', '') if client_info else ''
+        
+        # Get client name from first project or client info
+        if active_projects:
+            client_name = active_projects[0].get('client', client_code)
+        elif client_info:
+            client_name = client_info.get('client_name', client_code)
+        else:
+            client_name = client_code
+        
         # Build HTML
-        html = build_wip_email(display_name, active_projects, completed_projects)
+        html = build_wip_email(client_name, active_projects, completed_projects, header_url)
         
         return jsonify({
             'clientCode': client_code,
-            'clientName': display_name,
+            'clientName': client_name,
             'activeCount': len(active_projects),
             'completedCount': len(completed_projects),
             'html': html
@@ -291,9 +391,6 @@ def health():
     })
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
