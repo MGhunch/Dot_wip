@@ -229,19 +229,17 @@ def build_completed_section(completed_projects):
         return ''
     
     items = "".join([
-        f"<li style='margin-bottom: 8px;'><strong style='color: #ED1C24;'>{p['job_number']}</strong> — {p['job_name']} — {p['description']}</li>"
+        f"<li style='margin-bottom: 6px;'><strong>{p['job_number']}</strong> — {p['job_name']}</li>"
         for p in completed_projects
     ])
     
     return f'''
     <tr>
       <td style="padding: 20px;">
-        <div style="border-top: 2px solid #eee; padding-top: 20px;">
-          <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333;">✅ RECENTLY COMPLETED</p>
-          <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
-            {items}
-          </ul>
-        </div>
+        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333;">Recently completed</p>
+        <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
+          {items}
+        </ul>
       </td>
     </tr>'''
 
@@ -303,8 +301,8 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
       </td>
     </tr>
     
-    {build_section_html("IN PROGRESS", with_us)}
-    {build_section_html("JOBS WITH YOU", with_you)}
+    {build_section_html("IN PROGRESS: WITH US", with_us)}
+    {build_section_html("IN PROGRESS: WITH YOU", with_you)}
     {build_section_html("ON HOLD", on_hold, "#999999")}
     {build_completed_section(completed_projects)}
     
