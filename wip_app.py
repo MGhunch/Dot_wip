@@ -246,7 +246,7 @@ def wip():
     """Generate WIP email HTML for a client"""
     try:
         data = request.get_json()
-        client_code = data.get('clientCode', '')
+        client_code = data.get('clientCode', data.get('client', ''))
         
         if not client_code:
             return jsonify({'error': 'No client code provided'}), 400
@@ -291,6 +291,9 @@ def health():
     })
 
 
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
