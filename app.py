@@ -297,11 +297,11 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
 </head>
 <body style="margin: 0; padding: 0; font-family: Calibri, Arial, sans-serif; background-color: #f5f5f5; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
   
-  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 auto; background-color: #ffffff;">
+  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 0 0 20px; background-color: #ffffff;">
     
     <!-- Header -->
     <tr>
-      <td style="border-bottom: 4px solid #ED1C24; padding: 20px;">
+      <td style="border-bottom: 4px solid #ED1C24; padding: 0 20px 20px 20px;">
         {header_content}
         <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}: WIP</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
