@@ -316,7 +316,7 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
     <!-- Footer -->
     <tr>
       <td style="padding: 25px 20px; border-top: 1px solid #eee; text-align: center;">
-        <p style="margin: 0; font-size: 13px; color: #888; font-weight: bold;">Any questions or queries, <a href="mailto:dot@hunch.co.nz" style="color: #888;">get in touch</a>.</p>
+        <p style="margin: 0; font-size: 13px; color: #888; font-weight: bold;">Any questions or queries, <a href="mailto:michael@hunch.co.nz" style="color: #888;">get in touch</a></p>
         <p style="margin: 8px 0 0 0; font-size: 12px; color: #999;">WIP updated by Dot</p>
       </td>
     </tr>
