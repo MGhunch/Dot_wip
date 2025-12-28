@@ -303,7 +303,7 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
     <tr>
       <td style="border-bottom: 4px solid #ED1C24; padding: 0 20px 20px 20px;">
         {header_content}
-        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name} – WIP</p>
+        <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
       </td>
     </tr>
