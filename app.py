@@ -53,8 +53,7 @@ def get_client_info(client_code):
         
         fields = records[0].get('fields', {})
         
-        wip_header = fields.get('Wip headers', [])
-        header_url = wip_header[0].get('url', '') if wip_header else ''
+        header_url = 'https://mghunch.github.io/hunch-assets/Header_WIP.png'
         
         return {
             'client_name': fields.get('Client', ''),
