@@ -53,7 +53,7 @@ def get_client_info(client_code):
         
         fields = records[0].get('fields', {})
         
-        header_url = 'https://mghunch.github.io/hunch-assets/Header_WIP.png'
+        header_url = 'https://mghunch.github.io/hunch-assets/Header_Wip.png'
         
         return {
             'client_name': fields.get('Client', ''),
