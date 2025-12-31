@@ -135,8 +135,8 @@ def get_client_projects(client_code):
                 'stage': fields.get('Stage', ''),
                 'status': fields.get('Status', ''),
                 'with_client': fields.get('With Client?', False),
-                'update_summary': fields.get('Update View', ''),
-                'update_due': fields.get('Update due', ''),
+                'update_summary': fields.get('Update Summary', ''),
+                'update_due_friendly': fields.get('Update due friendly', ''),
                 'live_date': fields.get('Live Date', ''),
                 'client': fields.get('Client', ''),
                 'project_owner': fields.get('Project Owner', '')
@@ -176,20 +176,18 @@ def get_client_projects(client_code):
 
 def build_job_html(job):
     """Build HTML block for a single job"""
-    # Handle lookup fields that return as arrays
+    # Use pre-formatted fields from Airtable
     update_summary = job['update_summary']
     if isinstance(update_summary, list):
         update_summary = update_summary[0] if update_summary else ''
     if not update_summary:
         update_summary = 'No updates yet'
     
-    update_due = job['update_due']
-    if isinstance(update_due, list):
-        update_due = update_due[0] if update_due else ''
-    if update_due:
-        update_due = format_date(update_due)
-    else:
-        update_due = 'TBC'
+    update_due_friendly = job['update_due_friendly']
+    if isinstance(update_due_friendly, list):
+        update_due_friendly = update_due_friendly[0] if update_due_friendly else ''
+    if not update_due_friendly:
+        update_due_friendly = 'TBC'
     
     live_date = job['live_date']
     if not live_date:
@@ -199,7 +197,7 @@ def build_job_html(job):
     
     return f'''
     <tr>
-      <td style="padding: 15px 20px; border-bottom: 1px solid #eee;">
+      <td style="padding: 15px 10px; border-bottom: 1px solid #eee;">
         <p style="margin: 0 0 5px 0; font-size: 16px; font-weight: bold; color: #333;">
           {job['job_number']} &mdash; {job['job_name']}
         </p>
@@ -209,7 +207,7 @@ def build_job_html(job):
         <table cellpadding="0" cellspacing="0" style="font-size: 13px;">
           <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Owner:</strong></td><td style="color: #333;">{job['project_owner']}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Update:</strong></td><td style="color: #333;">{update_summary}</td></tr>
-          <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Due on:</strong></td><td style="color: #333;">{update_due}</td></tr>
+          <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Due on:</strong></td><td style="color: #333;">{update_due_friendly}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Live by:</strong></td><td style="color: #333;">{live_date}</td></tr>
           <tr><td style="padding: 2px 10px 2px 0; color: #888;"><strong>Job stage:</strong></td><td style="color: #333;">{job['stage']}</td></tr>
         </table>
@@ -224,7 +222,7 @@ def build_section_html(title, jobs, color="#ED1C24"):
     
     section = f'''
     <tr>
-      <td style="padding: 20px 20px 0 20px;">
+      <td style="padding: 20px 10px 0 10px;">
         <div style="background-color: {color}; color: #ffffff; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 3px;">
           {title}
         </div>
@@ -249,14 +247,14 @@ def build_completed_section(completed_projects):
     
     return f'''
     <tr>
-      <td style="padding: 20px 20px 0 20px;">
+      <td style="padding: 20px 10px 0 10px;">
         <div style="background-color: #999999; color: #ffffff; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 3px;">
           RECENTLY COMPLETED
         </div>
       </td>
     </tr>
     <tr>
-      <td style="padding: 15px 20px; color: #888; font-size: 13px;">
+      <td style="padding: 15px 10px; color: #888; font-size: 13px;">
         {items}
       </td>
     </tr>'''
@@ -308,11 +306,11 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
 </head>
 <body style="margin: 0; padding: 0; font-family: Calibri, Arial, sans-serif; background-color: #f5f5f5; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
   
-  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 0 0 20px; background-color: #ffffff;">
+  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 0 0 10px; background-color: #ffffff;">
     
     <!-- Header -->
     <tr>
-      <td style="border-bottom: 4px solid #ED1C24; padding: 0 20px 20px 20px;">
+      <td style="border-bottom: 4px solid #ED1C24; padding: 0 10px 20px 10px;">
         {header_content}
         <p style="margin: 15px 0 0 0; font-size: 22px; font-weight: bold; color: #333;">{client_name}</p>
         <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">{today}</p>
@@ -326,7 +324,7 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
     
     <!-- Footer -->
     <tr>
-      <td style="padding: 25px 20px; border-top: 1px solid #eee; text-align: center;">
+      <td style="padding: 25px 10px; border-top: 1px solid #eee; text-align: center;">
         <p style="margin: 0; font-size: 13px; color: #333; font-weight: bold;">Agency Intuition x Artificial Intelligence = AI&sup2;</p>
         <p style="margin: 8px 0 0 0; font-size: 12px; color: #999;"><a href="mailto:michael@hunch.co.nz" style="color: #999; text-decoration: none;">Got questions? Get in touch</a></p>
       </td>
