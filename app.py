@@ -100,7 +100,7 @@ def normalize_client_code(client_code):
 def get_client_projects(client_code):
     """Fetch all active projects for a client from Airtable"""
     if not AIRTABLE_API_KEY:
-        return [], []
+        return [], [], []
     
     try:
         headers = {
@@ -108,10 +108,10 @@ def get_client_projects(client_code):
             'Content-Type': 'application/json'
         }
         
-        # Filter by client code (Job Number prefix) and active status
-        filter_formula = f"AND(FIND('{client_code}', {{Job Number}})=1, OR({{Status}}='In Progress', {{Status}}='On Hold'))"
-        
         url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{AIRTABLE_PROJECTS_TABLE}"
+        
+        # Filter by client code (Job Number prefix) and active status (In Progress or On Hold)
+        filter_formula = f"AND(FIND('{client_code}', {{Job Number}})=1, OR({{Status}}='In Progress', {{Status}}='On Hold'))"
         params = {'filterByFormula': filter_formula}
         
         response = httpx.get(url, headers=headers, params=params, timeout=30.0)
@@ -142,6 +142,28 @@ def get_client_projects(client_code):
                 'project_owner': fields.get('Project Owner', '')
             })
         
+        # Get Incoming projects
+        incoming_filter = f"AND(FIND('{client_code}', {{Job Number}})=1, {{Status}}='Incoming')"
+        incoming_params = {'filterByFormula': incoming_filter}
+        incoming_response = httpx.get(url, headers=headers, params=incoming_params, timeout=30.0)
+        incoming_response.raise_for_status()
+        
+        incoming_records = incoming_response.json().get('records', [])
+        
+        incoming_projects = []
+        for record in incoming_records:
+            fields = record.get('fields', {})
+            job_number = fields.get('Job Number', '')
+            
+            # Skip placeholder job numbers (998, 999)
+            if job_number.endswith(('998', '999')):
+                continue
+                
+            incoming_projects.append({
+                'job_number': job_number,
+                'job_name': fields.get('Project Name', '')
+            })
+        
         # Get recently completed projects (Status = Completed, Status Changed in last 6 weeks)
         six_weeks_ago = (datetime.now() - timedelta(days=42)).strftime('%Y-%m-%d')
         completed_filter = f"AND(FIND('{client_code}', {{Job Number}})=1, {{Status}}='Completed', IS_AFTER({{Status Changed}}, '{six_weeks_ago}'))"
@@ -167,11 +189,11 @@ def get_client_projects(client_code):
                 'description': fields.get('Description', '')
             })
         
-        return active_projects, completed_projects
+        return active_projects, completed_projects, incoming_projects
         
     except Exception as e:
         print(f"Airtable error: {e}")
-        return [], []
+        return [], [], []
 
 
 def build_job_html(job):
@@ -260,7 +282,32 @@ def build_completed_section(completed_projects):
     </tr>'''
 
 
-def build_wip_email(client_name, projects, completed_projects, header_url=''):
+def build_incoming_section(incoming_projects):
+    """Build HTML section for incoming projects"""
+    if not incoming_projects:
+        return ''
+    
+    items = "".join([
+        f"<p style='margin: 0 0 8px 0;'><strong style='color: #888;'>{p['job_number']}</strong> &mdash; <span style='color: #333;'>{p['job_name']}</span></p>"
+        for p in incoming_projects
+    ])
+    
+    return f'''
+    <tr>
+      <td style="padding: 20px 10px 0 10px;">
+        <div style="background-color: #999999; color: #ffffff; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 3px;">
+          INCOMING
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 15px 10px; color: #888; font-size: 13px;">
+        {items}
+      </td>
+    </tr>'''
+
+
+def build_wip_email(client_name, projects, completed_projects, incoming_projects, header_url=''):
     """Build complete WIP email HTML"""
     today = datetime.now().strftime('%d %B %Y')
     
@@ -306,7 +353,7 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
 </head>
 <body style="margin: 0; padding: 0; font-family: Calibri, Arial, sans-serif; background-color: #f5f5f5; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
   
-  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 0 0 10px; background-color: #ffffff;">
+  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="width: 600px; max-width: 100%; margin: 0 auto; background-color: #ffffff;">
     
     <!-- Header -->
     <tr>
@@ -320,6 +367,7 @@ def build_wip_email(client_name, projects, completed_projects, header_url=''):
     {build_section_html("IN PROGRESS", with_us)}
     {build_section_html("JOBS WITH YOU", with_you)}
     {build_section_html("ON HOLD", on_hold, "#999999")}
+    {build_incoming_section(incoming_projects)}
     {build_completed_section(completed_projects)}
     
     <!-- Footer -->
@@ -355,9 +403,9 @@ def wip():
         client_code = normalize_client_code(client_code)
         
         # Get projects from Airtable
-        active_projects, completed_projects = get_client_projects(client_code)
+        active_projects, completed_projects, incoming_projects = get_client_projects(client_code)
         
-        if not active_projects and not completed_projects:
+        if not active_projects and not completed_projects and not incoming_projects:
             return jsonify({
                 'error': 'No projects found',
                 'clientCode': client_code
@@ -376,13 +424,14 @@ def wip():
             client_name = client_code
         
         # Build HTML
-        html = build_wip_email(client_name, active_projects, completed_projects, header_url)
+        html = build_wip_email(client_name, active_projects, completed_projects, incoming_projects, header_url)
         
         return jsonify({
             'clientCode': client_code,
             'clientName': client_name,
             'activeCount': len(active_projects),
             'completedCount': len(completed_projects),
+            'incomingCount': len(incoming_projects),
             'html': html
         })
         
